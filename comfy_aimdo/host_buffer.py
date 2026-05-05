@@ -1,8 +1,12 @@
 import ctypes
+import os
 
 from . import control
 
 lib = control.lib
+
+if os.name == "nt":
+    import msvcrt
 
 if lib is not None:
     lib.hostbuf_allocate.argtypes = [ctypes.c_uint64]
@@ -10,34 +14,70 @@ if lib is not None:
 
     lib.hostbuf_free.argtypes = [ctypes.c_void_p]
 
+    lib.hostbuf_get_raw_address.argtypes = [ctypes.c_void_p, ctypes.c_uint64, ctypes.c_uint64]
+    lib.hostbuf_get_raw_address.restype = ctypes.c_void_p
+
+    lib.hostbuf_extend.argtypes = [ctypes.c_void_p, ctypes.c_uint64]
+    lib.hostbuf_extend.restype = ctypes.c_void_p
+
+    lib.hostbuf_read_file_slice.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_uint64,  # handle / fd
+        ctypes.c_uint64,  # file_offset
+        ctypes.c_uint64,  # size
+        ctypes.c_uint64,  # offset
+    ]
+    lib.hostbuf_read_file_slice.restype = ctypes.c_bool
+
+    lib.hostbuf_truncate.argtypes = [ctypes.c_void_p, ctypes.c_uint64]
+    lib.hostbuf_truncate.restype = ctypes.c_bool
+
+
+def _file_handle(file_obj):
+    if isinstance(file_obj, int):
+        return file_obj
+
+    fd = file_obj.fileno()
+    return msvcrt.get_osfhandle(fd) if os.name == "nt" else fd
+
 
 class HostBuffer:
     def __init__(self, size, prewarm=0):
-        self.size = int(size)
-        self.prewarm = int(prewarm)
-        raise NotImplementedError("FIXME implement HostBuffer prewarm")
-        self._ptr = lib.hostbuf_allocate(self.size)
-        if not self._ptr:
-            raise RuntimeError("CUDA host buffer allocation failed")
-
-    def get_raw_address(self, size=0, offset=0):
-        offset = int(offset)
         size = int(size)
+        self.size = size
+        self.prewarm = int(prewarm)
+        self._ptr = lib.hostbuf_allocate(self.prewarm)
+        if not self._ptr:
+            raise RuntimeError("HostBuffer allocation failed")
+        if size and not lib.hostbuf_get_raw_address(self._ptr, size, 0):
+            raise RuntimeError("HostBuffer grow failed")
 
-        if offset + size > self.size:
-            # FIXME: grow the pinned allocation to offset + size and update self.size.
-            raise NotImplementedError("FIXME implement growable HostBuffer")
+    def get_raw_address(self):
+        ptr = lib.hostbuf_get_raw_address(self._ptr, 0, 0)
+        return int(ptr) if ptr else 0
 
-        return int(self._ptr) + offset
+    def extend(self, size):
+        size = int(size)
+        ptr = lib.hostbuf_extend(self._ptr, size)
+        if not ptr and size:
+            raise RuntimeError("HostBuffer.extend failed")
+        self.size += size
+        return int(ptr) if ptr else 0
 
     def read_file_slice(self, file_obj, file_offset, size, offset=0):
-        raise NotImplementedError("FIXME implement HostBuffer.read_file_slice")
+        if not lib.hostbuf_read_file_slice(self._ptr, _file_handle(file_obj),
+                                           int(file_offset), int(size), int(offset)):
+            raise RuntimeError("HostBuffer.read_file_slice failed")
+        self.size = max(self.size, int(offset) + int(size))
 
     def truncate(self, size):
-        raise NotImplementedError("FIXME implement HostBuffer.truncate")
+        if not lib.hostbuf_truncate(self._ptr, int(size)):
+            raise RuntimeError("HostBuffer.truncate failed")
+        self.size = int(size)
 
     def __del__(self):
         ptr = getattr(self, "_ptr", None)
         if ptr:
-            lib.hostbuf_free(ptr)
+            if lib is not None:
+                lib.hostbuf_free(ptr)
             self._ptr = None
