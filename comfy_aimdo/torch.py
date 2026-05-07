@@ -25,9 +25,8 @@ def aimdo_to_tensor(alloc, device):
     _, ptr, size = alloc
     return get_tensor_from_raw_ptr(ptr, size, device)
 
-def hostbuf_to_tensor(hostbuf, size=None):
-    size = hostbuf.size if size is None else int(size)
-    byte_view = (ctypes.c_uint8 * size).from_address(hostbuf.get_raw_address())
+def hostbuf_to_tensor(hostbuf):
+    byte_view = (ctypes.c_uint8 * hostbuf.size).from_address(hostbuf.get_raw_address())
     return torch.frombuffer(byte_view, dtype=torch.uint8)
 
 #pytorch doesnt have an API for a CUDAPluggableAllocator from an already loaded
