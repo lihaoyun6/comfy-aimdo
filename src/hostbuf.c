@@ -120,7 +120,6 @@ static bool hostbuf_truncate_impl(HostBuffer *hostbuf, uint64_t size, bool do_un
         hostbuf_release_address_space(hostbuf->base_address, (size_t)hostbuf->reserved_size);
         hostbuf->base_address = NULL;
         hostbuf->committed_size = 0;
-        hostbuf->reserved_size = 0;
     }
     log(VERBOSE, "%s: result hostbuf=%p size=%llu committed=%llu\n", __func__,
         (void *)hostbuf, (ull)hostbuf->size, (ull)hostbuf->committed_size);
