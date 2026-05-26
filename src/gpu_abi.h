@@ -24,6 +24,7 @@ typedef int CUdevice;
 typedef int CUresult;
 typedef struct CUctx_st *CUcontext;
 typedef struct CUstream_st *CUstream;
+typedef struct CUevent_st *CUevent;
 typedef unsigned long long CUmemGenericAllocationHandle;
 
 typedef enum CUdevice_attribute_enum {
@@ -34,6 +35,10 @@ typedef enum cudaError_enum {
     CUDA_SUCCESS = 0,
     CUDA_ERROR_OUT_OF_MEMORY = 2,
 } cudaError_enum;
+
+typedef enum CUevent_flags_enum {
+    CU_EVENT_DISABLE_TIMING = 0x2,
+} CUevent_flags;
 
 typedef enum CUmemAllocationHandleType_enum {
     CU_MEM_HANDLE_TYPE_NONE = 0x0,

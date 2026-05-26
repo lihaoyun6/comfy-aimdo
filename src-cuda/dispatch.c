@@ -50,6 +50,10 @@ static const DispatchSymbol dispatch_symbols[] = {
     { (void **)&g_cuda.p_cuMemUnmap, "cuMemUnmap", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
     { (void **)&g_cuda.p_cuMemRelease, "cuMemRelease", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
     { (void **)&g_cuda.p_cuMemcpyHtoDAsync, "cuMemcpyHtoDAsync", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
+    { (void **)&g_cuda.p_cuEventCreate, "cuEventCreate", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
+    { (void **)&g_cuda.p_cuEventDestroy, "cuEventDestroy", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
+    { (void **)&g_cuda.p_cuEventRecord, "cuEventRecord", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
+    { (void **)&g_cuda.p_cuEventSynchronize, "cuEventSynchronize", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
 #if defined(_WIN32) || defined(_WIN64)
     { (void **)&g_cuda.p_cuDeviceGetLuid, "cuDeviceGetLuid", CU_GET_PROC_ADDRESS_LEGACY_STREAM },
 #endif

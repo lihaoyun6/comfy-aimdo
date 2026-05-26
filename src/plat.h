@@ -90,6 +90,10 @@ void *aimdo_find_loaded_module(const char *const *libraries, size_t library_coun
 #define cuMemUnmap                  g_cuda.p_cuMemUnmap
 #define cuMemRelease                g_cuda.p_cuMemRelease
 #define cuMemcpyHtoDAsync           g_cuda.p_cuMemcpyHtoDAsync
+#define cuEventCreate               g_cuda.p_cuEventCreate
+#define cuEventDestroy              g_cuda.p_cuEventDestroy
+#define cuEventRecord               g_cuda.p_cuEventRecord
+#define cuEventSynchronize          g_cuda.p_cuEventSynchronize
 #define cuDeviceGetLuid             g_cuda.p_cuDeviceGetLuid
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))

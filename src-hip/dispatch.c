@@ -53,6 +53,10 @@ static const DispatchSymbol dispatch_symbols[] = {
     { (void **)&g_cuda.p_cuMemUnmap, "hipMemUnmap" },
     { (void **)&g_cuda.p_cuMemRelease, "hipMemRelease" },
     { (void **)&g_cuda.p_cuMemcpyHtoDAsync, "hipMemcpyHtoDAsync" },
+    { (void **)&g_cuda.p_cuEventCreate, "hipEventCreateWithFlags" },
+    { (void **)&g_cuda.p_cuEventDestroy, "hipEventDestroy" },
+    { (void **)&g_cuda.p_cuEventRecord, "hipEventRecord" },
+    { (void **)&g_cuda.p_cuEventSynchronize, "hipEventSynchronize" },
 };
 
 static const char *const hip_library_names[] = {
