@@ -110,16 +110,18 @@ static inline bool mod1(ModelVBAR *mv, size_t page_nr, bool do_free, bool do_unp
     return do_free;
 }
 
-size_t vbars_free(size_t size) {
-    size_t pages_needed = VBAR_GET_PAGE_NR_UP(size);
+size_t vbars_free(ssize_t size) {
+    size_t pages_needed;
     bool dirty = false;
 
     one_time_setup();
     vbars_dirty = true;
 
-    if (!size) {
+    if (size <= 0) {
         return 0;
     }
+
+    pages_needed = VBAR_GET_PAGE_NR_UP((size_t)size);
 
     for (ModelVBAR *i = lowest_priority.higher; pages_needed && i != &highest_priority;
          i = i->higher) {
@@ -144,18 +146,36 @@ static inline size_t move_cursor_to_absent(ModelVBAR *mv, size_t cursor) {
     return cursor;
 }
 
-static void vbars_free_for_vbar(ModelVBAR *mv, size_t target) {
-    size_t cursor = move_cursor_to_absent(mv, 0);
+static inline size_t spend_surplus_on_cursor(ModelVBAR *mv, size_t target, size_t cursor,
+                                             ssize_t *surplus) {
+    while (*surplus >= (ssize_t)VBAR_PAGE_SIZE && cursor < target && cursor < mv->watermark) {
+        *surplus -= (ssize_t)VBAR_PAGE_SIZE;
+        cursor = move_cursor_to_absent(mv, cursor + 1);
+    }
+    return cursor;
+}
 
-    CHECK_CU(cuCtxSynchronize());
+static void vbars_free_for_vbar(ModelVBAR *mv, size_t target, ssize_t surplus) {
+    size_t cursor = move_cursor_to_absent(mv, 0);
+    bool synced = false;
+
+    cursor = spend_surplus_on_cursor(mv, target, cursor, &surplus);
 
     for (ModelVBAR *i = lowest_priority.higher;
-         cursor < target && cursor < mv->watermark && i != &highest_priority;
+         ((cursor < target && cursor < mv->watermark) || surplus < 0) && i != &highest_priority;
          i = i->higher) {
-        for (; cursor < target && cursor < mv->watermark && i->watermark > i->watermark_limit;
+        for (; ((cursor < target && cursor < mv->watermark) || surplus < 0) &&
+               i->watermark > i->watermark_limit;
              i->watermark--) {
+            ResidentPage *rp = &i->residency_map[i->watermark - 1];
+
+            if (!synced && rp->handle && rp->pin_count == 0) {
+                CHECK_CU(cuCtxSynchronize());
+                synced = true;
+            }
             if (mod1(i, i->watermark - 1, true, false)) {
-                cursor = move_cursor_to_absent(mv, cursor + 1);
+                surplus += (ssize_t)VBAR_PAGE_SIZE;
+                cursor = spend_surplus_on_cursor(mv, target, cursor, &surplus);
             }
         }
     }
@@ -283,11 +303,14 @@ uint64_t vbar_get(void *devctx, void *vbar) {
 #define VBAR_FAULT_OOM               1
 #define VBAR_FAULT_ERROR             2
 
+#define VBAR_MISS_ALLOC_GRACE             (512 * M)
+
 SHARED_EXPORT
 int vbar_fault(void *devctx, void *vbar, uint64_t offset, uint64_t size, uint32_t *signature) {
     ModelVBAR *mv = (ModelVBAR *)vbar;
     int ret = VBAR_FAULT_SUCCESS;
     size_t signature_index = 0;
+    bool miss_alloc_checked = false;
 
     set_devctx((AimdoContext *)devctx);
 
@@ -317,18 +340,30 @@ int vbar_fault(void *devctx, void *vbar, uint64_t offset, uint64_t size, uint32_
             continue;
         }
 
+        if (!miss_alloc_checked) {
+            vbars_free_for_vbar(mv, page_end,
+                                (ssize_t)VBAR_MISS_ALLOC_GRACE -
+                                budget_deficit((page_end - page_nr) * VBAR_PAGE_SIZE));
+            miss_alloc_checked = true;
+
+            if (page_end > mv->watermark) {
+                log(DEBUG, "VBAR allocation cancelled due to allocation-check watermark reduction\n");
+                return VBAR_FAULT_OOM;
+            }
+        }
+
         log(VERBOSE, "VBAR needs to allocate VRAM for page %d\n", (int)page_nr);
 
-        if (budget_deficit(VBAR_PAGE_SIZE) ||
+        if (budget_deficit(VBAR_PAGE_SIZE) > 0 ||
             (err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle)) != CUDA_SUCCESS) {
             if (err != CUDA_ERROR_OUT_OF_MEMORY) {
                 log(ERROR, "VRAM Allocation failed (non OOM)\n");
                 return VBAR_FAULT_ERROR;
             }
             log(DEBUG, "VBAR allocator attempt exceeds available VRAM ...\n");
-            vbars_free_for_vbar(mv, page_end);
-            if (page_nr >= mv->watermark) {
-                log(DEBUG, "VBAR allocation cancelled due to watermark reduction\n");
+            vbars_free(VBAR_PAGE_SIZE);
+            if (page_end > mv->watermark) {
+                log(DEBUG, "VBAR allocation cancelled due to backup-free watermark reduction\n");
                 return VBAR_FAULT_OOM;
             }
             if ((err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle)) != CUDA_SUCCESS) {
