@@ -6,6 +6,11 @@
 #  define VRAM_CHUNK_SIZE      (16ULL * 1024 * 1024)
 #endif
 
+/* ROCm/Windows mitigation: a HIP-runtime VMM defect faults after a large VA
+ * window is repeatedly reserved+freed per node. We keep the reservation alive
+ * and reuse it per max_size on the current device context; physical VRAM is
+ * still released on destroy, only the reserve/free pair is elided. */
+
 SHARED_EXPORT
 void *vrambuf_create(int device, size_t max_size) {
     VramBuffer *buf;
@@ -15,6 +20,17 @@ void *vrambuf_create(int device, size_t max_size) {
     }
 
     max_size = CUDA_ALIGN_UP(max_size);
+
+#if defined(__HIP_PLATFORM_AMD__) && defined(_WIN32)
+    for (VramBuffer **p = &va_pool; *p; p = &(*p)->next) {
+        if ((*p)->max_size == max_size) {
+            buf = *p;
+            *p = buf->next;
+            buf->next = NULL;
+            return (void *)buf;
+        }
+    }
+#endif
 
     buf = (VramBuffer *)calloc(1, sizeof(*buf) + sizeof(CUmemGenericAllocationHandle) * max_size / VRAM_CHUNK_SIZE);
     if (!buf) {
@@ -112,8 +128,18 @@ bool vrambuf_destroy(void *arg) {
         CHECK_CU(cuMemRelease(buf->handles[i]));
     }
 
-    CHECK_CU(cuMemAddressFree(buf->base_ptr, buf->max_size));
     total_vram_usage -= buf->allocated;
+
+#if defined(__HIP_PLATFORM_AMD__) && defined(_WIN32)
+    /* VRAM freed; keep the VA reservation and park it for reuse. */
+    buf->allocated = 0;
+    buf->handle_count = 0;
+    buf->next = va_pool;
+    va_pool = buf;
+    return true;
+#else
+    CHECK_CU(cuMemAddressFree(buf->base_ptr, buf->max_size));
     free(buf);
     return true;
+#endif
 }
