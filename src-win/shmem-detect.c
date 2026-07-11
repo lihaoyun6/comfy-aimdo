@@ -36,7 +36,6 @@ bool aimdo_wddm_init(CUdevice dev)
         g_wddm_adapter->lpVtbl->Release(g_wddm_adapter);
         g_wddm_adapter = NULL;
     }
-    
     if (g_dxcore_adapter) {
         g_dxcore_adapter->lpVtbl->Release(g_dxcore_adapter);
         g_dxcore_adapter = NULL;
@@ -77,8 +76,8 @@ bool aimdo_wddm_init(CUdevice dev)
                                 nodeSegmentGroup.segmentGroup = DXCoreSegmentGroup_Local;
                                 
                                 if (SUCCEEDED(d_adapter->lpVtbl->QueryState(d_adapter, DXCoreAdapterState_AdapterMemoryBudget, sizeof(nodeSegmentGroup), &nodeSegmentGroup, sizeof(test_budget), &test_budget))) {
-                                    g_dxcore_adapter = d_adapter;
-
+                                    g_dxcore_adapter = d_adapter; 
+                                    
                                     d_adapter->lpVtbl->GetProperty(d_adapter, DXCoreAdapterProperty_DriverDescription, sizeof(adapter_name), adapter_name);
                                     log(INFO,
                                         "comfy-aimdo DXCore adapter match: %s runtime_luid=%08lx:%08lx\n",
@@ -86,13 +85,13 @@ bool aimdo_wddm_init(CUdevice dev)
                                         (unsigned long)(unsigned int)cuda_luid.HighPart,
                                         (unsigned long)cuda_luid.LowPart);
                                     
-                                    dxcore_list->lpVtbl->Release(dxcore_list);
-                                    dxcore_factory->lpVtbl->Release(dxcore_factory);
-                                    return true;
+                                    break;
                                 }
                             }
                         }
-                        d_adapter->lpVtbl->Release(d_adapter);
+                        if (g_dxcore_adapter != d_adapter) {
+                            d_adapter->lpVtbl->Release(d_adapter);
+                        }
                     }
                 }
                 dxcore_list->lpVtbl->Release(dxcore_list);
@@ -100,8 +99,9 @@ bool aimdo_wddm_init(CUdevice dev)
             dxcore_factory->lpVtbl->Release(dxcore_factory);
         }
     }
-    
+
     if (FAILED(CreateDXGIFactory1(&IID_IDXGIFactory4, (void **)&factory))) {
+        if (g_dxcore_adapter) return true;
         goto fail;
     }
 
@@ -136,23 +136,24 @@ bool aimdo_wddm_init(CUdevice dev)
         adapter->lpVtbl->Release(adapter);
     }
 
-fail:
-    g_wddm_adapter = NULL;
-    g_dxcore_adapter = NULL;
     if (factory) {
         factory->lpVtbl->Release(factory);
+    }
+    
+    if (g_dxcore_adapter) {
+        return true;
+    }
+
+fail:
+    g_wddm_adapter = NULL;
+    if (g_dxcore_adapter) {
+        g_dxcore_adapter->lpVtbl->Release(g_dxcore_adapter);
+        g_dxcore_adapter = NULL;
     }
     log(WARNING, "comfy-aimdo WDDM init failed (%d). aimdo is blind to the CUDA Sysmem Fallback Policy\n", fail_code);
     return false;
 }
 
-/* Apparently this is still too small for all common graphics VRAM spikes.
- * However we can't pad too much on the smaller cards, and its not the end
- * of the world if we page out a little bit because it will adapt and correct
- * quickly.
- */
-
-/* FIXME: This should be 0 if sysmem fallback is disabled by the user */
 #define WDDM_BUDGET_HEADROOM (512 * 1024 * 1024)
 #define CUDA_BUDGET_HEADROOM (192 * 1024 * 1024)
 
@@ -161,6 +162,7 @@ bool poll_budget_deficit(const char **prevailing_deficit_method)
     DXGI_QUERY_VIDEO_MEMORY_INFO info;
     uint64_t effective_budget = vram_capacity;
     size_t free_vram = 0, total_vram = 0;
+    bool budget_queried = false;
 
     uint64_t now = GET_TICK();
 
@@ -180,19 +182,22 @@ bool poll_budget_deficit(const char **prevailing_deficit_method)
         if (SUCCEEDED(g_dxcore_adapter->lpVtbl->QueryState(g_dxcore_adapter, DXCoreAdapterState_AdapterMemoryBudget, sizeof(nodeSegmentGroup), &nodeSegmentGroup, sizeof(budget), &budget))) {
             effective_budget = budget.budget;
             *prevailing_deficit_method = "DXCore budget";
+            budget_queried = true;
             log(DEBUG,
                 "%s: DXCore budget=%zu MB usage=%zu MB reservation=%zu MB available=%zu MB\n",
                 __func__, (size_t)(budget.budget / M), (size_t)(budget.currentUsage / M),
                 (size_t)(budget.currentReservation / M),
                 (size_t)(budget.availableForReservation / M));
         } else {
-            log(WARNING, "comfy-aimdo DXCore VRAM query failed. Using physical capacity as fallback\n");
+            log(WARNING, "comfy-aimdo DXCore VRAM query failed. Falling back to WDDM...\n");
         }
     } 
-    else if (g_wddm_adapter) {
+    
+    if (!budget_queried && g_wddm_adapter) {
         if (SUCCEEDED(g_wddm_adapter->lpVtbl->QueryVideoMemoryInfo(g_wddm_adapter, 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &info))) {
             effective_budget = info.Budget;
             *prevailing_deficit_method = "WDDM budget";
+            budget_queried = true;
             log(DEBUG,
                 "%s: WDDM budget=%zu MB usage=%zu MB reservation=%zu MB available=%zu MB\n",
                 __func__, (size_t)(info.Budget / M), (size_t)(info.CurrentUsage / M),
