@@ -111,11 +111,6 @@ typedef unsigned long long ull;
 #define M (K * K)
 #define G (M * K)
 
-/* Safely undefine GDI's ERROR macro before parsing DebugLevels in C++ */
-#ifdef ERROR
-#undef ERROR
-#endif
-
 enum DebugLevels {
     __NONE__ = -1,
     /* Default to everything so if python itegration is hosed, we see prints. */
@@ -189,19 +184,6 @@ static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
     CUmemGenericAllocationHandle h = 0;
     CUresult err;
 
-#ifdef __cplusplus
-    // C++ compatible non-nested designated initialization
-    CUmemAllocationProp prop = {};
-    prop.type = CU_MEM_ALLOCATION_TYPE_PINNED;
-    prop.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
-    prop.location.id = device;
-
-    CUmemAccessDesc accessDesc = {};
-    accessDesc.location.type = CU_MEM_LOCATION_TYPE_DEVICE;
-    accessDesc.location.id = device;
-    accessDesc.flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE;
-#else
-    // Legacy C99 designated nested initialization
     CUmemAllocationProp prop = {
         .type = CU_MEM_ALLOCATION_TYPE_PINNED,
         .location.type = CU_MEM_LOCATION_TYPE_DEVICE,
@@ -213,7 +195,6 @@ static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
         .location.id = device,
         .flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE,
     };
-#endif
 
     if (!CHECK_CU(err = cuMemCreate(&h, size, &prop, 0))) {
         goto fail;
