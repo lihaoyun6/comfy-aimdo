@@ -221,6 +221,7 @@ bool init(const int *cuda_device_ids, const uint64_t *extra_vram_headrooms, size
 
         devctx->_device_id = cuda_device_ids[i];
         devctx->_extra_vram_headroom = extra_vram_headrooms[i];
+        devctx->_malloc_async_clamp = UINT64_MAX;
         devctx->_hostbuf_file_reader_active = -1;
         set_devctx(devctx);
 

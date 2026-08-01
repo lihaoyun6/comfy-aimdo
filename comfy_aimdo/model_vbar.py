@@ -15,7 +15,7 @@ if lib is not None:
 
     lib.vbars_reset_watermark_limits.argtypes = [ctypes.c_void_p]
 
-    lib.vbar_prioritize.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    lib.vbar_prioritize.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint64]
 
     lib.vbar_deprioritize.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 
@@ -57,8 +57,10 @@ class ModelVBAR:
         self.offset = 0
         self.base_addr = lib.vbar_get(self._devctx, self._ptr)
 
-    def prioritize(self):
-        lib.vbar_prioritize(self._devctx, self._ptr)
+    def prioritize(self, malloc_async_clamp=None):
+        if malloc_async_clamp is None:
+            malloc_async_clamp = ctypes.c_uint64(-1).value
+        lib.vbar_prioritize(self._devctx, self._ptr, malloc_async_clamp)
 
     def deprioritize(self):
         lib.vbar_deprioritize(self._devctx, self._ptr)
