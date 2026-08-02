@@ -92,6 +92,7 @@ fi
 
 # shellcheck disable=SC2086
 gcc -shared -o "$CUDA_OUTPUT_PATH" -fPIC -O2 -g -pthread \
+    -DAIMDO_CUDA \
     ${AIMDO_EXTRA_CFLAGS:-} \
     "$ROOT_DIR"/src/*.c "$ROOT_DIR"/src-cuda/dispatch.c "$ROOT_DIR"/src-posix/*.c \
     -I"$ROOT_DIR/src" -I"$FUNCHOOK_SRC/include" \
