@@ -220,7 +220,7 @@ int aimdo_cuda_malloc_async(CUdeviceptr *devPtr, size_t size, CUstream hStream,
         return true_cuMemAllocAsync(devPtr, size, hStream);
     }
 
-    vbars_free(budget_deficit(size));
+    vbars_free(budget_deficit(MIN(size, malloc_async_clamp)));
 
     if (CHECK_CU(true_cuMemAllocAsync(&dptr, size, hStream))) {
         *devPtr = dptr;

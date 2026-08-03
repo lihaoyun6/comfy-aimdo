@@ -31,12 +31,13 @@ def detect_vendor():
     return None
 
 
-def init(implementation: str | None = None, simple_vram_headroom: int | None = None):
+def init(implementation: str | None = None, simple_vram_headroom: int | None = None, nvml_pressure: bool = False):
     global lib
 
     if lib is not None:
         if simple_vram_headroom is not None:
             lib.set_simple_vram_headroom(int(simple_vram_headroom))
+        lib.set_nvml_pressure(bool(nvml_pressure))
         return True
 
     if implementation is None:
@@ -78,6 +79,9 @@ def init(implementation: str | None = None, simple_vram_headroom: int | None = N
     lib.set_simple_vram_headroom.argtypes = [ctypes.c_int64]
     lib.set_simple_vram_headroom.restype = None
 
+    lib.set_nvml_pressure.argtypes = [ctypes.c_bool]
+    lib.set_nvml_pressure.restype = None
+
     lib.init.argtypes = [ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_uint64), ctypes.c_size_t]
     lib.init.restype = ctypes.c_bool
 
@@ -86,6 +90,7 @@ def init(implementation: str | None = None, simple_vram_headroom: int | None = N
 
     if simple_vram_headroom is not None:
         lib.set_simple_vram_headroom(int(simple_vram_headroom))
+    lib.set_nvml_pressure(bool(nvml_pressure))
 
     return True
 

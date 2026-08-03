@@ -163,6 +163,7 @@ bool poll_budget_deficit(const char **prevailing_deficit_method)
     uint64_t effective_budget = vram_capacity;
     size_t free_vram = 0, total_vram = 0;
     bool budget_queried = false;
+    bool used_nvml = false;
 
     uint64_t now = GET_TICK();
 
@@ -210,16 +211,19 @@ bool poll_budget_deficit(const char **prevailing_deficit_method)
 
     deficit_sync = (ssize_t)(total_vram_usage + WDDM_BUDGET_HEADROOM) - (ssize_t)effective_budget;
 
-    if (CHECK_CU(cuMemGetInfo(&free_vram, &total_vram))) {
+#if defined(AIMDO_CUDA)
+    used_nvml = nvml_device && aimdo_nvml_memory_info(nvml_device, &free_vram, &total_vram);
+#endif
+    if (used_nvml || CHECK_CU(cuMemGetInfo(&free_vram, &total_vram))) {
         ssize_t deficit_cuda = (ssize_t)(CUDA_BUDGET_HEADROOM / 2) - (ssize_t)free_vram;
 
         log(DEBUG,
-            "%s: cuMemGetInfo free=%zu MB total=%zu MB deficit_cuda=%zd MB\n",
+            "%s: device memory free=%zu MB total=%zu MB deficit_cuda=%zd MB\n",
             __func__, free_vram / M, total_vram / M, deficit_cuda / (ssize_t)M);
 
         if (deficit_cuda > deficit_sync) {
             deficit_sync = deficit_cuda;
-            *prevailing_deficit_method = "cuMemGetInfo (Windows)";
+            *prevailing_deficit_method = used_nvml ? "NVML (Windows)" : "cuMemGetInfo (Windows)";
         }
     }
 

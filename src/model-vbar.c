@@ -293,10 +293,11 @@ void vbars_reset_watermark_limits(void *devctx) {
 }
 
 SHARED_EXPORT
-void vbar_prioritize(void *devctx, void *vbar) {
+void vbar_prioritize(void *devctx, void *vbar, uint64_t clamp) {
     ModelVBAR *mv = (ModelVBAR *)vbar;
 
     set_devctx((AimdoContext *)devctx);
+    malloc_async_clamp = clamp;
 
     log(DEBUG, "%s vbar=%p\n", __func__, vbar);
     vbars_dirty = true;
