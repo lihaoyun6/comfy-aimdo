@@ -166,18 +166,20 @@ static inline ssize_t budget_deficit(size_t size) {
     return deficit;
 }
 
-static inline int check_cu_impl(CUresult res, const char *label) {
-    if (res != CUDA_SUCCESS && res != CUDA_ERROR_OUT_OF_MEMORY) {
+static inline int check_cu_impl(CUresult res, const char *label, int oom_level) {
+    if (res != CUDA_SUCCESS) {
         const char* desc;
         if (cuGetErrorString(res, &desc) != CUDA_SUCCESS) {
             desc = "<FATAL - CANNOT PARSE CUDA ERROR CODE>";
 
         }
-        log(DEBUG, "CUDA API FAILED : %s : %s\n", label, desc);
+        log(res == CUDA_ERROR_OUT_OF_MEMORY ? oom_level : DEBUG,
+            "CUDA API FAILED : %s : %s\n", label, desc);
     }
     return (res == CUDA_SUCCESS);
 }
-#define CHECK_CU(x) check_cu_impl((x), #x)
+#define CHECK_CU(x) check_cu_impl((x), #x, VVERBOSE)
+#define CHECK_CU_OOM_ERROR(x) check_cu_impl((x), #x, ERROR)
 
 static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
                                      CUmemGenericAllocationHandle *handle) {
