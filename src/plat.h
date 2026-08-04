@@ -116,7 +116,7 @@ enum DebugLevels {
     /* Default to everything so if python itegration is hosed, we see prints. */
     ALL = 0,
     CRITICAL,
-    ERROR,
+    AIMDO_LOG_ERROR,
     WARNING,
     INFO,
     DEBUG,
@@ -129,14 +129,13 @@ extern int log_level;
 extern uint64_t log_shot_counter;
 const char *get_level_str(int level);
 void log_reset_shots();
+void aimdo_log(int level, const char *file, int line, const char *format, ...);
 
 #define do_log(do_shot_counter, level, ...) {                                                   \
     static _Thread_local uint64_t _sc_;                                                         \
     if ((!log_level || log_level >= (level)) && _sc_ < log_shot_counter) {                      \
         _sc_ = (do_shot_counter) ? log_shot_counter : 0;                                        \
-        fprintf(stderr, "aimdo: %s:%d:%s:", __FILE__, __LINE__, get_level_str(level));          \
-        fprintf(stderr, __VA_ARGS__);                                                           \
-        fflush(stderr);                                                                         \
+        aimdo_log((level), __FILE__, __LINE__, __VA_ARGS__);                                    \
     }                                                                                           \
 }
 
@@ -166,18 +165,21 @@ static inline ssize_t budget_deficit(size_t size) {
     return deficit;
 }
 
-static inline int check_cu_impl(CUresult res, const char *label) {
-    if (res != CUDA_SUCCESS && res != CUDA_ERROR_OUT_OF_MEMORY) {
+static inline int check_cu_impl(CUresult res, const char *label, int oom_level, int error_level) {
+    if (res != CUDA_SUCCESS) {
         const char* desc;
         if (cuGetErrorString(res, &desc) != CUDA_SUCCESS) {
             desc = "<FATAL - CANNOT PARSE CUDA ERROR CODE>";
 
         }
-        log(DEBUG, "CUDA API FAILED : %s : %s\n", label, desc);
+        log(res == CUDA_ERROR_OUT_OF_MEMORY ? oom_level : error_level,
+            "CUDA API FAILED (%d): %s: %s\n", (int)res, label, desc);
     }
     return (res == CUDA_SUCCESS);
 }
-#define CHECK_CU(x) check_cu_impl((x), #x)
+#define CHECK_CU(x) check_cu_impl((x), #x, VVERBOSE, DEBUG)
+#define CHECK_CU_OOM_ERROR(x) check_cu_impl((x), #x, AIMDO_LOG_ERROR, DEBUG)
+#define CHECK_CU_ERROR(x) check_cu_impl((x), #x, VVERBOSE, AIMDO_LOG_ERROR)
 
 static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
                                      CUmemGenericAllocationHandle *handle) {
@@ -196,13 +198,13 @@ static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
         .flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE,
     };
 
-    if (!CHECK_CU(err = cuMemCreate(&h, size, &prop, 0))) {
+    if (!CHECK_CU_ERROR(err = cuMemCreate(&h, size, &prop, 0))) {
         goto fail;
     }
-    if (!CHECK_CU(err = cuMemMap(vaddr, size, 0, h, 0))) {
+    if (!CHECK_CU_ERROR(err = cuMemMap(vaddr, size, 0, h, 0))) {
         goto fail_mmap;
     }
-    if (!CHECK_CU(err = cuMemSetAccess(vaddr, size, &accessDesc, 1))) {
+    if (!CHECK_CU_ERROR(err = cuMemSetAccess(vaddr, size, &accessDesc, 1))) {
         goto fail_access;
     }
     total_vram_usage += size;
@@ -211,10 +213,10 @@ static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
     return CUDA_SUCCESS;
 
 fail_access:
-    CHECK_CU(cuMemUnmap(vaddr, size));
+    CHECK_CU_ERROR(cuMemUnmap(vaddr, size));
     unmap_workaround(vaddr, size);
 fail_mmap:
-    CHECK_CU(cuMemRelease(h));
+    CHECK_CU_ERROR(cuMemRelease(h));
 fail:
     return err;
 }

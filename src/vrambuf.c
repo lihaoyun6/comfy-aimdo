@@ -40,7 +40,7 @@ void *vrambuf_create(int device, size_t max_size) {
     buf->max_size = max_size;
 
     if (!CHECK_CU(cuMemAddressReserve(&buf->base_ptr, max_size, 0, 0, 0))) {
-        log(ERROR, "%s: %d %zuk\n", __func__, device, max_size / K);
+        log(AIMDO_LOG_ERROR, "%s: %d %zuk\n", __func__, device, max_size / K);
         free(buf);
         return NULL;
     }
@@ -81,14 +81,14 @@ bool vrambuf_grow(void *arg, size_t required_size) {
         }
         if ((err = three_stooges(buf->base_ptr + buf->allocated, to_allocate, buf->device, &handle)) != CUDA_SUCCESS) {
             if (err != CUDA_ERROR_OUT_OF_MEMORY) {
-                log(ERROR, "VRAM Allocation failed (non OOM)\n");
+                log(AIMDO_LOG_ERROR, "VRAM Allocation failed (non OOM)\n");
                 return false;
             }
             log(DEBUG, "Pytorch allocator attempt exceeds available VRAM ...\n");
             vbars_free(VRAM_CHUNK_SIZE);
             if ((err = three_stooges(buf->base_ptr + buf->allocated, to_allocate, buf->device, &handle)) != CUDA_SUCCESS) {
                 bool is_oom = err == CUDA_ERROR_OUT_OF_MEMORY;
-                log(is_oom ? INFO : ERROR, "VRAM Allocation failed (%s)\n", is_oom ? "OOM" : "error");
+                log(is_oom ? INFO : AIMDO_LOG_ERROR, "VRAM Allocation failed (%s)\n", is_oom ? "OOM" : "error");
                 return false;
             }
         }

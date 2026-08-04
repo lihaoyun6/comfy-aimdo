@@ -12,13 +12,13 @@ bool aimdo_setup_hooks(void) {
     int status;
 
     if (!hooks[0].target_ptr || !*hooks[0].target_ptr) {
-        log(ERROR, "%s: CUDA hook targets are not resolved\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: CUDA hook targets are not resolved\n", __func__);
         return false;
     }
 
     funchook_state = funchook_create();
     if (!funchook_state) {
-        log(ERROR, "%s: funchook_create failed\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: funchook_create failed\n", __func__);
         return false;
     }
 
@@ -26,7 +26,7 @@ bool aimdo_setup_hooks(void) {
         const char *detail;
 
         if (!*hooks[i].target_ptr) {
-            log(ERROR, "%s: failed to resolve %s\n", __func__, hooks[i].name);
+            log(AIMDO_LOG_ERROR, "%s: failed to resolve %s\n", __func__, hooks[i].name);
             goto fail_teardown;
         }
 
@@ -34,7 +34,7 @@ bool aimdo_setup_hooks(void) {
         status = funchook_prepare(funchook_state, hooks[i].true_ptr, hooks[i].hook_ptr);
         if (status != FUNCHOOK_ERROR_SUCCESS) {
             detail = funchook_error_message(funchook_state);
-            log(ERROR, "%s: funchook_prepare(%s) failed: %d %s\n", __func__, hooks[i].name,
+            log(AIMDO_LOG_ERROR, "%s: funchook_prepare(%s) failed: %d %s\n", __func__, hooks[i].name,
                 status, detail ? detail : "<unknown funchook error>");
             goto fail_teardown;
         }
@@ -44,7 +44,7 @@ bool aimdo_setup_hooks(void) {
     if (status != FUNCHOOK_ERROR_SUCCESS) {
         const char *detail = funchook_error_message(funchook_state);
 
-        log(ERROR, "%s: funchook_install failed: %d %s\n", __func__, status,
+        log(AIMDO_LOG_ERROR, "%s: funchook_install failed: %d %s\n", __func__, status,
             detail ? detail : "<unknown funchook error>");
         goto fail_teardown;
     }
@@ -69,7 +69,7 @@ void aimdo_teardown_hooks(void) {
         (status = funchook_destroy(funchook_state)) != FUNCHOOK_ERROR_SUCCESS) {
         const char *detail = funchook_error_message(funchook_state);
 
-        log(ERROR, "%s: funchook teardown failed: %d %s\n", __func__, status,
+        log(AIMDO_LOG_ERROR, "%s: funchook teardown failed: %d %s\n", __func__, status,
             detail ? detail : "<unknown funchook error>");
     }
 

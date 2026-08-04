@@ -134,7 +134,7 @@ static bool aimdo_nvml_runtime_init(void) {
         g_nvml_module = (void *)LoadLibraryW(path);
     }
     if (!g_nvml_module) {
-        log(ERROR, "%s: failed to load NVML\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: failed to load NVML\n", __func__);
         return false;
     }
 
@@ -143,12 +143,12 @@ static bool aimdo_nvml_runtime_init(void) {
     p_nvmlDeviceGetHandleByUUID = (PFN_nvmlDeviceGetHandleByUUID)aimdo_nvml_resolve_symbol("nvmlDeviceGetHandleByUUID");
     p_nvmlDeviceGetMemoryInfo = (PFN_nvmlDeviceGetMemoryInfo)aimdo_nvml_resolve_symbol("nvmlDeviceGetMemoryInfo");
     if (!p_nvmlInit_v2 || !p_nvmlShutdown || !p_nvmlDeviceGetHandleByUUID || !p_nvmlDeviceGetMemoryInfo) {
-        log(ERROR, "%s: failed to resolve required NVML symbols\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: failed to resolve required NVML symbols\n", __func__);
         aimdo_nvml_runtime_cleanup();
         return false;
     }
     if (p_nvmlInit_v2() != NVML_SUCCESS) {
-        log(ERROR, "%s: failed to initialize NVML\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: failed to initialize NVML\n", __func__);
         aimdo_nvml_runtime_cleanup();
         return false;
     }
@@ -174,7 +174,7 @@ bool aimdo_nvml_device_init(CUdevice device, void **handle) {
     if (p_nvmlDeviceGetHandleByUUID(uuid, &nvml_handle) != NVML_SUCCESS) {
         memcpy(uuid, "MIG-", 4);
         if (p_nvmlDeviceGetHandleByUUID(uuid, &nvml_handle) != NVML_SUCCESS) {
-            log(ERROR, "%s: failed to resolve NVML device %s\n", __func__, uuid);
+            log(AIMDO_LOG_ERROR, "%s: failed to resolve NVML device %s\n", __func__, uuid);
             return false;
         }
     }
@@ -213,7 +213,7 @@ bool aimdo_cuda_runtime_init(void) {
                                                             "cuGetProcAddress");
 #endif
     if (!g_cuda.p_cuGetProcAddress) {
-        log(ERROR, "%s: failed to resolve cuGetProcAddress\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: failed to resolve cuGetProcAddress\n", __func__);
         aimdo_cuda_runtime_cleanup();
         return false;
     }
@@ -227,7 +227,7 @@ bool aimdo_cuda_runtime_init(void) {
             resolved = NULL;
         }
         if (!resolved) {
-            log(ERROR, "%s: failed to resolve required CUDA symbol %s\n", __func__,
+            log(AIMDO_LOG_ERROR, "%s: failed to resolve required CUDA symbol %s\n", __func__,
                 dispatch_symbols[i].symbol);
             aimdo_cuda_runtime_cleanup();
             return false;
@@ -236,7 +236,7 @@ bool aimdo_cuda_runtime_init(void) {
     }
 
     if (g_cuda.p_cuInit(0) != CUDA_SUCCESS) {
-        log(ERROR, "%s: cuInit failed\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: cuInit failed\n", __func__);
         aimdo_cuda_runtime_cleanup();
         return false;
     }
