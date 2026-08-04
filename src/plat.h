@@ -129,14 +129,13 @@ extern int log_level;
 extern uint64_t log_shot_counter;
 const char *get_level_str(int level);
 void log_reset_shots();
+void aimdo_log(int level, const char *file, int line, const char *format, ...);
 
 #define do_log(do_shot_counter, level, ...) {                                                   \
     static _Thread_local uint64_t _sc_;                                                         \
     if ((!log_level || log_level >= (level)) && _sc_ < log_shot_counter) {                      \
         _sc_ = (do_shot_counter) ? log_shot_counter : 0;                                        \
-        fprintf(stderr, "aimdo: %s:%d:%s:", __FILE__, __LINE__, get_level_str(level));          \
-        fprintf(stderr, __VA_ARGS__);                                                           \
-        fflush(stderr);                                                                         \
+        aimdo_log((level), __FILE__, __LINE__, __VA_ARGS__);                                    \
     }                                                                                           \
 }
 
