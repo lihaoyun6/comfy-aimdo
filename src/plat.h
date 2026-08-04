@@ -166,20 +166,21 @@ static inline ssize_t budget_deficit(size_t size) {
     return deficit;
 }
 
-static inline int check_cu_impl(CUresult res, const char *label, int oom_level) {
+static inline int check_cu_impl(CUresult res, const char *label, int oom_level, int error_level) {
     if (res != CUDA_SUCCESS) {
         const char* desc;
         if (cuGetErrorString(res, &desc) != CUDA_SUCCESS) {
             desc = "<FATAL - CANNOT PARSE CUDA ERROR CODE>";
 
         }
-        log(res == CUDA_ERROR_OUT_OF_MEMORY ? oom_level : DEBUG,
-            "CUDA API FAILED : %s : %s\n", label, desc);
+        log(res == CUDA_ERROR_OUT_OF_MEMORY ? oom_level : error_level,
+            "CUDA API FAILED (%d): %s: %s\n", (int)res, label, desc);
     }
     return (res == CUDA_SUCCESS);
 }
-#define CHECK_CU(x) check_cu_impl((x), #x, VVERBOSE)
-#define CHECK_CU_OOM_ERROR(x) check_cu_impl((x), #x, ERROR)
+#define CHECK_CU(x) check_cu_impl((x), #x, VVERBOSE, DEBUG)
+#define CHECK_CU_OOM_ERROR(x) check_cu_impl((x), #x, ERROR, DEBUG)
+#define CHECK_CU_ERROR(x) check_cu_impl((x), #x, VVERBOSE, ERROR)
 
 static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
                                      CUmemGenericAllocationHandle *handle) {
@@ -198,13 +199,13 @@ static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
         .flags = CU_MEM_ACCESS_FLAGS_PROT_READWRITE,
     };
 
-    if (!CHECK_CU(err = cuMemCreate(&h, size, &prop, 0))) {
+    if (!CHECK_CU_ERROR(err = cuMemCreate(&h, size, &prop, 0))) {
         goto fail;
     }
-    if (!CHECK_CU(err = cuMemMap(vaddr, size, 0, h, 0))) {
+    if (!CHECK_CU_ERROR(err = cuMemMap(vaddr, size, 0, h, 0))) {
         goto fail_mmap;
     }
-    if (!CHECK_CU(err = cuMemSetAccess(vaddr, size, &accessDesc, 1))) {
+    if (!CHECK_CU_ERROR(err = cuMemSetAccess(vaddr, size, &accessDesc, 1))) {
         goto fail_access;
     }
     total_vram_usage += size;
@@ -213,10 +214,10 @@ static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
     return CUDA_SUCCESS;
 
 fail_access:
-    CHECK_CU(cuMemUnmap(vaddr, size));
+    CHECK_CU_ERROR(cuMemUnmap(vaddr, size));
     unmap_workaround(vaddr, size);
 fail_mmap:
-    CHECK_CU(cuMemRelease(h));
+    CHECK_CU_ERROR(cuMemRelease(h));
 fail:
     return err;
 }
