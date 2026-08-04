@@ -251,7 +251,7 @@ bool hostbuf_read_file_slice(void *hostbuf_ptr, int device,
         return false;
     }
     host = (char *)hostbuf->base_address + offset;
-    if (!stream || !device_ptr) {
+    if (!device_ptr) {
         if (!xfer_file_read(file_handle, file_offset, host, (size_t)size,
                             hostbuf->mark_cold)) {
             log(AIMDO_LOG_ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%llu host_offset=%llu\n",
