@@ -23,7 +23,7 @@ bool xfer_file_read_at(XferFileHandle file_handle, uint64_t offset, void *destin
         if (!event) {
             DWORD err = GetLastError();
 
-            log(ERROR, "%s: CreateEventW failed error=%lu offset=%llu size=%lu\n",
+            log(AIMDO_LOG_ERROR, "%s: CreateEventW failed error=%lu offset=%llu size=%lu\n",
                 __func__, err, (ull)(offset + done), requested);
             return false;
         }
@@ -31,7 +31,7 @@ bool xfer_file_read_at(XferFileHandle file_handle, uint64_t offset, void *destin
             DWORD err = GetLastError();
 
             if (err != ERROR_IO_PENDING) {
-                log(ERROR, "%s: ReadFile failed error=%lu handle=%p offset=%llu size=%lu\n",
+                log(AIMDO_LOG_ERROR, "%s: ReadFile failed error=%lu handle=%p offset=%llu size=%lu\n",
                     __func__, err, (void *)handle, (ull)(offset + done), requested);
                 CloseHandle(event);
                 return false;
@@ -39,7 +39,7 @@ bool xfer_file_read_at(XferFileHandle file_handle, uint64_t offset, void *destin
             if (!GetOverlappedResult(handle, &overlapped, &got, TRUE)) {
                 err = GetLastError();
 
-                log(ERROR, "%s: GetOverlappedResult failed error=%lu handle=%p offset=%llu size=%lu\n",
+                log(AIMDO_LOG_ERROR, "%s: GetOverlappedResult failed error=%lu handle=%p offset=%llu size=%lu\n",
                     __func__, err, (void *)handle, (ull)(offset + done), requested);
                 CloseHandle(event);
                 return false;
@@ -47,7 +47,7 @@ bool xfer_file_read_at(XferFileHandle file_handle, uint64_t offset, void *destin
         }
         CloseHandle(event);
         if (got == 0) {
-            log(ERROR, "%s: zero-byte read handle=%p offset=%llu size=%lu\n",
+            log(AIMDO_LOG_ERROR, "%s: zero-byte read handle=%p offset=%llu size=%lu\n",
                 __func__, (void *)handle, (ull)(offset + done), requested);
             return false;
         }

@@ -16,7 +16,7 @@ static bool hostbuf_file_reader_retire_active(void) {
         return true;
     }
     if (slot->event) {
-        log(ERROR, "%s: active slot %d already has a completion event\n", __func__,
+        log(AIMDO_LOG_ERROR, "%s: active slot %d already has a completion event\n", __func__,
             g_devctx->_hostbuf_file_reader_active);
         return false;
     }
@@ -57,7 +57,7 @@ bool hostbuf_file_reader_read(int device, uint64_t file_handle, uint64_t file_of
         return true;
     }
     if (!device_ptr || device < 0 || !set_devctx_for_device(device)) {
-        log(ERROR, "%s: input validation failed device_ptr=%p device=%d\n",
+        log(AIMDO_LOG_ERROR, "%s: input validation failed device_ptr=%p device=%d\n",
             __func__, (void *)(uintptr_t)device_ptr, device);
         return false;
     }
@@ -79,7 +79,7 @@ bool hostbuf_file_reader_read(int device, uint64_t file_handle, uint64_t file_of
         chunk = (size_t)MIN(size, HOSTBUF_FILE_READER_WINDOW - slot->offset);
         if (!xfer_file_read(file_handle, file_offset, slot->buffer + slot->offset,
                             chunk, mark_cold)) {
-            log(ERROR, "%s: file read failed handle=0x%llx offset=%llu size=%zu\n",
+            log(AIMDO_LOG_ERROR, "%s: file read failed handle=0x%llx offset=%llu size=%zu\n",
                 __func__, (ull)file_handle, (ull)file_offset, chunk);
             return false;
         }
@@ -87,7 +87,7 @@ bool hostbuf_file_reader_read(int device, uint64_t file_handle, uint64_t file_of
                                                  slot->buffer + slot->offset,
                                                  chunk, (CUstream)stream);
         if (!CHECK_CU(copy_result)) {
-            log(ERROR, "%s: device copy failed result=%d device_ptr=%p device=%d stream=%p size=%zu\n",
+            log(AIMDO_LOG_ERROR, "%s: device copy failed result=%d device_ptr=%p device=%d stream=%p size=%zu\n",
                 __func__, (int)copy_result, (void *)(uintptr_t)device_ptr, device,
                 (void *)stream, chunk);
             return false;

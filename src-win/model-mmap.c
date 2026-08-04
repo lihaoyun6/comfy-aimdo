@@ -19,18 +19,18 @@ static wchar_t *utf8_to_wide(const char *str) {
 
     wide_len = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, NULL, 0);
     if (wide_len <= 0) {
-        log(ERROR, "%s: failed to convert utf-8 path to utf-16. OS Error: %lu\n", __func__, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: failed to convert utf-8 path to utf-16. OS Error: %lu\n", __func__, GetLastError());
         return NULL;
     }
 
     wide = calloc((size_t)wide_len, sizeof(wchar_t));
     if (!wide) {
-        log(ERROR, "%s: allocation failed for wide path\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: allocation failed for wide path\n", __func__);
         return NULL;
     }
 
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str, -1, wide, wide_len) <= 0) {
-        log(ERROR, "%s: failed to convert utf-8 path to utf-16. OS Error: %lu\n", __func__, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: failed to convert utf-8 path to utf-16. OS Error: %lu\n", __func__, GetLastError());
         free(wide);
         return NULL;
     }
@@ -41,13 +41,13 @@ static wchar_t *utf8_to_wide(const char *str) {
 static bool model_mmap_map(ModelMMAP *mmap) {
     mmap->hMapping = CreateFileMapping(mmap->hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!mmap->hMapping) {
-        log(ERROR, "%s: failed to create file mapping. OS Error: %lu\n", __func__, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: failed to create file mapping. OS Error: %lu\n", __func__, GetLastError());
         return false;
     }
 
     if (!MapViewOfFile3(mmap->hMapping, GetCurrentProcess(), mmap->base_address, 0, mmap->size,
                         MEM_REPLACE_PLACEHOLDER, PAGE_READONLY, NULL, 0)) {
-        log(ERROR, "%s: MapViewOfFile3 failed. OS Error: %lu\n", __func__, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: MapViewOfFile3 failed. OS Error: %lu\n", __func__, GetLastError());
         CloseHandle(mmap->hMapping);
         mmap->hMapping = NULL;
         return false;
@@ -58,7 +58,7 @@ static bool model_mmap_map(ModelMMAP *mmap) {
 
 static bool model_mmap_unmap(ModelMMAP *mmap, ULONG flags) {
     if (!UnmapViewOfFile2(GetCurrentProcess(), mmap->base_address, flags)) {
-        log(ERROR, "%s: UnmapViewOfFile2 failed at %p. Error: %lu\n", __func__, mmap->base_address, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: UnmapViewOfFile2 failed at %p. Error: %lu\n", __func__, mmap->base_address, GetLastError());
         return false;
     }
 
@@ -79,13 +79,13 @@ void *model_mmap_allocate(char *file_path) {
     log(DEBUG, "%s: creating ModelMMAP for %s\n", __func__, file_path);
 
     if (!mmap) {
-        log(ERROR, "%s: allocation failed\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: allocation failed\n", __func__);
         goto fail_alloc;
     }
 
     file_path_wide = utf8_to_wide(file_path);
     if (!file_path_wide) {
-        log(ERROR, "%s: could not convert file path from utf-8\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: could not convert file path from utf-8\n", __func__);
         goto fail_file;
     }
 
@@ -96,7 +96,7 @@ void *model_mmap_allocate(char *file_path) {
     free(file_path_wide);
     file_path_wide = NULL;
     if (mmap->hFile == INVALID_HANDLE_VALUE) {
-        log(ERROR, "%s: could not open file (utf-8 path was: %s). OS Error: %lu\n", __func__, file_path, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: could not open file (utf-8 path was: %s). OS Error: %lu\n", __func__, file_path, GetLastError());
         goto fail_file;
     }
 
@@ -106,7 +106,7 @@ void *model_mmap_allocate(char *file_path) {
     mmap->base_address = VirtualAlloc2(NULL, NULL, mmap->size, MEM_RESERVE | MEM_RESERVE_PLACEHOLDER,
                                       PAGE_NOACCESS, NULL, 0);
     if (!mmap->base_address) {
-        log(ERROR, "%s: VirtualAlloc2 failed to reserve address space. OS Error: %lu\n", __func__, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: VirtualAlloc2 failed to reserve address space. OS Error: %lu\n", __func__, GetLastError());
         goto fail_base;
     }
 
@@ -153,7 +153,7 @@ bool model_mmap_bounce(void *model_mmap_ptr) {
     log(DEBUG, "%s: %p: DEBUG in model_mmap bounce\n", __func__, (void *)mmap);
 
     if (!mmap || !model_mmap_unmap(mmap, MEM_PRESERVE_PLACEHOLDER) || !model_mmap_map(mmap)) {
-        log(ERROR, "%s: %p: FAILED in model_mmap bounce\n", __func__, (void *)mmap);
+        log(AIMDO_LOG_ERROR, "%s: %p: FAILED in model_mmap bounce\n", __func__, (void *)mmap);
         return false;
     }
 
@@ -173,7 +173,7 @@ void model_mmap_deallocate(void *model_mmap_ptr) {
     model_mmap_unmap(mmap, MEM_PRESERVE_PLACEHOLDER);
 
     if (mmap->base_address && !VirtualFree(mmap->base_address, 0, MEM_RELEASE)) {
-        log(ERROR, "%s: VirtualFree failed for %p. Error: %lu\n", __func__, mmap->base_address, GetLastError());
+        log(AIMDO_LOG_ERROR, "%s: VirtualFree failed for %p. Error: %lu\n", __func__, mmap->base_address, GetLastError());
     }
 
     if (mmap->hFile && mmap->hFile != INVALID_HANDLE_VALUE) {

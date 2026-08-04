@@ -84,7 +84,7 @@ bool xfer_file_read(XferFileHandle file_handle, uint64_t offset, void *destinati
     bool ok = false;
 
     if (!wait.mutex || !wait.condvar) {
-        log(ERROR, "%s: failed to allocate wait resources size=%zu\n", __func__, size);
+        log(AIMDO_LOG_ERROR, "%s: failed to allocate wait resources size=%zu\n", __func__, size);
         goto fail;
     }
     for (size_t done = 0; done < size; done += XFER_FILE_CHUNK_SIZE) {
@@ -114,7 +114,7 @@ bool xfer_file_read(XferFileHandle file_handle, uint64_t offset, void *destinati
     mutex_unlock(wait.mutex);
     ok = !wait.failed;
     if (!ok) {
-        log(ERROR, "%s: worker failed handle=0x%llx offset=%llu size=%zu\n",
+        log(AIMDO_LOG_ERROR, "%s: worker failed handle=0x%llx offset=%llu size=%zu\n",
             __func__, (ull)file_handle, (ull)offset, size);
     }
 fail:

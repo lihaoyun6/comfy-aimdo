@@ -42,7 +42,7 @@ static bool hostbuf_grow(HostBuffer *hostbuf, uint64_t size, bool do_register) {
             hostbuf->base_address, (ull)hostbuf->reserved_size);
     }
     if (target_committed > hostbuf->reserved_size) {
-        log(ERROR, "%s: requested %llu bytes beyond reserved host buffer %llu\n", __func__,
+        log(AIMDO_LOG_ERROR, "%s: requested %llu bytes beyond reserved host buffer %llu\n", __func__,
             (ull)target_committed, (ull)hostbuf->reserved_size);
         return false;
     }
@@ -246,7 +246,7 @@ bool hostbuf_read_file_slice(void *hostbuf_ptr, int device,
         return true;
     }
     if (!hostbuf || !hostbuf->base_address) {
-        log(ERROR, "%s: input validation failed hostbuf=%p base=%p\n", __func__,
+        log(AIMDO_LOG_ERROR, "%s: input validation failed hostbuf=%p base=%p\n", __func__,
             (void *)hostbuf, hostbuf ? hostbuf->base_address : NULL);
         return false;
     }
@@ -254,14 +254,14 @@ bool hostbuf_read_file_slice(void *hostbuf_ptr, int device,
     if (!stream || !device_ptr) {
         if (!xfer_file_read(file_handle, file_offset, host, (size_t)size,
                             hostbuf->mark_cold)) {
-            log(ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%llu host_offset=%llu\n",
+            log(AIMDO_LOG_ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%llu host_offset=%llu\n",
                 __func__, (ull)file_handle, (ull)file_offset, (ull)size, (ull)offset);
             return false;
         }
         return true;
     }
     if (device < 0 || !set_devctx_for_device(device)) {
-        log(ERROR, "%s: device validation failed device_ptr=%p device=%d\n",
+        log(AIMDO_LOG_ERROR, "%s: device validation failed device_ptr=%p device=%d\n",
             __func__, (void *)(uintptr_t)device_ptr, device);
         return false;
     }
@@ -270,7 +270,7 @@ bool hostbuf_read_file_slice(void *hostbuf_ptr, int device,
 
         if (!xfer_file_read(file_handle, file_offset + done, host + done, chunk,
                             hostbuf->mark_cold)) {
-            log(ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%zu host_offset=%llu\n",
+            log(AIMDO_LOG_ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%zu host_offset=%llu\n",
                 __func__, (ull)file_handle, (ull)(file_offset + done), chunk,
                 (ull)(offset + done));
             return false;
@@ -278,7 +278,7 @@ bool hostbuf_read_file_slice(void *hostbuf_ptr, int device,
         CUresult copy_result = cuMemcpyHtoDAsync((CUdeviceptr)(device_ptr + done),
                                                  host + done, chunk, (CUstream)stream);
         if (!CHECK_CU(copy_result)) {
-            log(ERROR, "%s: device copy failed result=%d device_ptr=%p device=%d stream=%p size=%zu\n",
+            log(AIMDO_LOG_ERROR, "%s: device copy failed result=%d device_ptr=%p device=%d stream=%p size=%zu\n",
                 __func__, (int)copy_result, (void *)(uintptr_t)(device_ptr + done),
                 device, (void *)stream, chunk);
             return false;

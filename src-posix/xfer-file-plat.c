@@ -17,7 +17,7 @@ bool xfer_file_read_at(XferFileHandle file_handle, uint64_t offset, void *destin
                           (off_t)(offset + done));
 
         if (n <= 0) {
-            log(ERROR, "%s: pread failed at %llu (errno=%d)\n", __func__,
+            log(AIMDO_LOG_ERROR, "%s: pread failed at %llu (errno=%d)\n", __func__,
                 (ull)(offset + done), errno);
             return false;
         }

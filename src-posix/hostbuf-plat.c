@@ -22,7 +22,7 @@ void *hostbuf_reserve_address_space(size_t size) {
     void *ptr = mmap(NULL, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
 
     if (ptr == MAP_FAILED) {
-        log(ERROR, "%s: mmap reserve failed for %zu bytes\n", __func__, size);
+        log(AIMDO_LOG_ERROR, "%s: mmap reserve failed for %zu bytes\n", __func__, size);
         return NULL;
     }
 

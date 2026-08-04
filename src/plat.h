@@ -116,7 +116,7 @@ enum DebugLevels {
     /* Default to everything so if python itegration is hosed, we see prints. */
     ALL = 0,
     CRITICAL,
-    ERROR,
+    AIMDO_LOG_ERROR,
     WARNING,
     INFO,
     DEBUG,
@@ -178,8 +178,8 @@ static inline int check_cu_impl(CUresult res, const char *label, int oom_level, 
     return (res == CUDA_SUCCESS);
 }
 #define CHECK_CU(x) check_cu_impl((x), #x, VVERBOSE, DEBUG)
-#define CHECK_CU_OOM_ERROR(x) check_cu_impl((x), #x, ERROR, DEBUG)
-#define CHECK_CU_ERROR(x) check_cu_impl((x), #x, VVERBOSE, ERROR)
+#define CHECK_CU_OOM_ERROR(x) check_cu_impl((x), #x, AIMDO_LOG_ERROR, DEBUG)
+#define CHECK_CU_ERROR(x) check_cu_impl((x), #x, VVERBOSE, AIMDO_LOG_ERROR)
 
 static inline CUresult three_stooges(CUdeviceptr vaddr, size_t size, int device,
                                      CUmemGenericAllocationHandle *handle) {
