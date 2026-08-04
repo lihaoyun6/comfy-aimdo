@@ -83,9 +83,13 @@ bool hostbuf_file_reader_read(int device, uint64_t file_handle, uint64_t file_of
                 __func__, (ull)file_handle, (ull)file_offset, chunk);
             return false;
         }
-        if (!CHECK_CU(cuMemcpyHtoDAsync((CUdeviceptr)device_ptr,
-                                        slot->buffer + slot->offset,
-                                        chunk, (CUstream)stream))) {
+        CUresult copy_result = cuMemcpyHtoDAsync((CUdeviceptr)device_ptr,
+                                                 slot->buffer + slot->offset,
+                                                 chunk, (CUstream)stream);
+        if (!CHECK_CU(copy_result)) {
+            log(ERROR, "%s: device copy failed result=%d device_ptr=%p device=%d stream=%p size=%zu\n",
+                __func__, (int)copy_result, (void *)(uintptr_t)device_ptr, device,
+                (void *)stream, chunk);
             return false;
         }
 

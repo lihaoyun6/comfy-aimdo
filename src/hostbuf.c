@@ -246,23 +246,41 @@ bool hostbuf_read_file_slice(void *hostbuf_ptr, int device,
         return true;
     }
     if (!hostbuf || !hostbuf->base_address) {
+        log(ERROR, "%s: input validation failed hostbuf=%p base=%p\n", __func__,
+            (void *)hostbuf, hostbuf ? hostbuf->base_address : NULL);
         return false;
     }
     host = (char *)hostbuf->base_address + offset;
     if (!stream || !device_ptr) {
-        return xfer_file_read(file_handle, file_offset, host, (size_t)size,
-                              hostbuf->mark_cold);
+        if (!xfer_file_read(file_handle, file_offset, host, (size_t)size,
+                            hostbuf->mark_cold)) {
+            log(ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%llu host_offset=%llu\n",
+                __func__, (ull)file_handle, (ull)file_offset, (ull)size, (ull)offset);
+            return false;
+        }
+        return true;
     }
     if (device < 0 || !set_devctx_for_device(device)) {
+        log(ERROR, "%s: device validation failed device_ptr=%p device=%d\n",
+            __func__, (void *)(uintptr_t)device_ptr, device);
         return false;
     }
     for (uint64_t done = 0; done < size; done += HOSTBUF_STREAM_WINDOW) {
         size_t chunk = (size_t)MIN(HOSTBUF_STREAM_WINDOW, size - done);
 
         if (!xfer_file_read(file_handle, file_offset + done, host + done, chunk,
-                            hostbuf->mark_cold) ||
-            !CHECK_CU(cuMemcpyHtoDAsync((CUdeviceptr)(device_ptr + done), host + done,
-                                        chunk, (CUstream)stream))) {
+                            hostbuf->mark_cold)) {
+            log(ERROR, "%s: file read failed handle=0x%llx file_offset=%llu size=%zu host_offset=%llu\n",
+                __func__, (ull)file_handle, (ull)(file_offset + done), chunk,
+                (ull)(offset + done));
+            return false;
+        }
+        CUresult copy_result = cuMemcpyHtoDAsync((CUdeviceptr)(device_ptr + done),
+                                                 host + done, chunk, (CUstream)stream);
+        if (!CHECK_CU(copy_result)) {
+            log(ERROR, "%s: device copy failed result=%d device_ptr=%p device=%d stream=%p size=%zu\n",
+                __func__, (int)copy_result, (void *)(uintptr_t)(device_ptr + done),
+                device, (void *)stream, chunk);
             return false;
         }
     }
