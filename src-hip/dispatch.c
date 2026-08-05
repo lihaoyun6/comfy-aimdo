@@ -92,7 +92,7 @@ bool aimdo_cuda_runtime_init(void) {
         void *resolved = aimdo_hip_resolve_symbol(dispatch_symbols[i].symbol);
 
         if (!resolved) {
-            log(ERROR, "%s: failed to resolve required HIP symbol %s\n", __func__,
+            log(AIMDO_LOG_ERROR, "%s: failed to resolve required HIP symbol %s\n", __func__,
                 dispatch_symbols[i].symbol);
             aimdo_cuda_runtime_cleanup();
             return false;
@@ -120,7 +120,7 @@ bool aimdo_cuda_runtime_init(void) {
             if (g_cuda.p_cuGetErrorString) {
                 g_cuda.p_cuGetErrorString(err, &desc);
             }
-            log(ERROR, "%s: hipInit failed with code %d%s%s\n", __func__, (int)err,
+            log(AIMDO_LOG_ERROR, "%s: hipInit failed with code %d%s%s\n", __func__, (int)err,
                 desc ? ": " : "", desc ? desc : "");
             aimdo_cuda_runtime_cleanup();
             return false;

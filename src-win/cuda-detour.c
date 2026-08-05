@@ -13,7 +13,7 @@ static inline bool install_hook_entries(HookEntry *hooks, size_t num_hooks) {
         *hooks[i].true_ptr = *hooks[i].target_ptr;
         if (!*hooks[i].true_ptr ||
             DetourAttach(hooks[i].true_ptr, hooks[i].hook_ptr) != 0) {
-            log(ERROR, "%s: Hook %s failed %p\n", __func__, hooks[i].name, *hooks[i].true_ptr);
+            log(AIMDO_LOG_ERROR, "%s: Hook %s failed %p\n", __func__, hooks[i].name, *hooks[i].true_ptr);
             DetourTransactionAbort();
             return false;
         }
@@ -21,7 +21,7 @@ static inline bool install_hook_entries(HookEntry *hooks, size_t num_hooks) {
 
     status = (int)DetourTransactionCommit();
     if (status != 0) {
-        log(ERROR, "%s: DetourTransactionCommit failed: %d\n", __func__, status);
+        log(AIMDO_LOG_ERROR, "%s: DetourTransactionCommit failed: %d\n", __func__, status);
         return false;
     }
 
@@ -31,7 +31,7 @@ static inline bool install_hook_entries(HookEntry *hooks, size_t num_hooks) {
 
 bool aimdo_setup_hooks() {
     if (!hooks[0].target_ptr || !*hooks[0].target_ptr) {
-        log(ERROR, "%s: CUDA hook targets are not resolved\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: CUDA hook targets are not resolved\n", __func__);
         return false;
     }
 
@@ -55,7 +55,7 @@ void aimdo_teardown_hooks() {
 
     status = (int)DetourTransactionCommit();
     if (status != 0) {
-        log(ERROR, "%s: DetourDetach failed: %d\n", __func__, status);
+        log(AIMDO_LOG_ERROR, "%s: DetourDetach failed: %d\n", __func__, status);
     } else {
         log(DEBUG, "%s: hooks successfully removed\n", __func__);
     }

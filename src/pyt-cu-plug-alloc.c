@@ -88,5 +88,5 @@ void free_fn(void* ptr, size_t size, int device, cudaStream_t stream) {
         return;
     }
 
-    log(ERROR, "%s could not find VRAM@%p\n", __func__, ptr);
+    log(AIMDO_LOG_ERROR, "%s could not find VRAM@%p\n", __func__, ptr);
 }

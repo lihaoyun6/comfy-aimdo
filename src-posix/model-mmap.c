@@ -20,30 +20,30 @@ void *model_mmap_allocate(char *file_path) {
     log(DEBUG, "%s: creating ModelMMAP for %s\n", __func__, file_path);
 
     if (!mm) {
-        log(ERROR, "%s: allocation failed\n", __func__);
+        log(AIMDO_LOG_ERROR, "%s: allocation failed\n", __func__);
         return NULL;
     }
 
     mm->fd = open(file_path, O_RDONLY);
     if (mm->fd < 0) {
-        log(ERROR, "%s: could not open file: %s (errno=%d)\n", __func__, file_path, errno);
+        log(AIMDO_LOG_ERROR, "%s: could not open file: %s (errno=%d)\n", __func__, file_path, errno);
         goto fail;
     }
 
     if (fstat(mm->fd, &st) != 0) {
-        log(ERROR, "%s: fstat failed for %s (errno=%d)\n", __func__, file_path, errno);
+        log(AIMDO_LOG_ERROR, "%s: fstat failed for %s (errno=%d)\n", __func__, file_path, errno);
         goto fail;
     }
 
     if (st.st_size <= 0) {
-        log(ERROR, "%s: invalid file size for %s: %lld\n", __func__, file_path, (long long)st.st_size);
+        log(AIMDO_LOG_ERROR, "%s: invalid file size for %s: %lld\n", __func__, file_path, (long long)st.st_size);
         goto fail;
     }
 
     mm->size = (uint64_t)st.st_size;
     mm->base_address = mmap(NULL, mm->size, PROT_READ, MAP_PRIVATE, mm->fd, 0);
     if (mm->base_address == MAP_FAILED) {
-        log(ERROR, "%s: mmap failed for %s (errno=%d)\n", __func__, file_path, errno);
+        log(AIMDO_LOG_ERROR, "%s: mmap failed for %s (errno=%d)\n", __func__, file_path, errno);
         goto fail;
     }
 
@@ -80,7 +80,7 @@ bool model_mmap_bounce(void *model_mmap_ptr) {
     ModelMMAP *mmap = (ModelMMAP *)model_mmap_ptr;
 
     if (!mmap || madvise(mmap->base_address, mmap->size, MADV_DONTNEED) != 0) {
-        log(ERROR, "%s: %p: FAILED in model_mmap bounce (errno=%d)\n", __func__, (void *)mmap, errno);
+        log(AIMDO_LOG_ERROR, "%s: %p: FAILED in model_mmap bounce (errno=%d)\n", __func__, (void *)mmap, errno);
         return false;
     }
 
@@ -97,7 +97,7 @@ void model_mmap_deallocate(void *model_mmap_ptr) {
     }
 
     if (mmap->base_address && munmap(mmap->base_address, mmap->size) != 0) {
-        log(ERROR, "%s: munmap failed for %p (errno=%d)\n", __func__, mmap->base_address, errno);
+        log(AIMDO_LOG_ERROR, "%s: munmap failed for %p (errno=%d)\n", __func__, mmap->base_address, errno);
     }
 
     if (mmap->fd >= 0) {

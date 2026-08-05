@@ -7,6 +7,23 @@ import importlib.util
 
 lib = None
 devctxs = []
+_log_callback = None
+
+_LOG_CALLBACK = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_char_p)
+_LOG_LEVELS = {
+    1: logging.CRITICAL,
+    2: logging.ERROR,
+    3: logging.WARNING,
+    4: logging.INFO,
+    5: logging.DEBUG,
+    6: logging.DEBUG,
+    7: logging.DEBUG,
+}
+
+
+def _native_log(level, message):
+    logging.log(_LOG_LEVELS.get(level, logging.DEBUG),
+                message.decode("utf-8", errors="replace").rstrip())
 
 
 def detect_vendor():
@@ -32,7 +49,7 @@ def detect_vendor():
 
 
 def init(implementation: str | None = None, simple_vram_headroom: int | None = None, nvml_pressure: bool = False):
-    global lib
+    global lib, _log_callback
 
     if lib is not None:
         if simple_vram_headroom is not None:
@@ -70,6 +87,11 @@ def init(implementation: str | None = None, simple_vram_headroom: int | None = N
         logging.info(f"comfy-aimdo failed to load: {e}")
         logging.info(f"NOTE: comfy-aimdo currently only supports Nvidia and AMD GPUs")
         return False
+
+    lib.set_log_callback.argtypes = [_LOG_CALLBACK]
+    lib.set_log_callback.restype = None
+    _log_callback = _LOG_CALLBACK(_native_log)
+    lib.set_log_callback(_log_callback)
 
     lib.get_total_vram_usage.argtypes = [ctypes.c_void_p]
     lib.get_total_vram_usage.restype = ctypes.c_uint64
@@ -144,11 +166,13 @@ def get_devctx(device_id: int):
     raise RuntimeError(f"comfy-aimdo device {device_id} is not initialized")
 
 def deinit():
-    global lib, devctxs
+    global lib, devctxs, _log_callback
     if lib is not None:
         lib.cleanup()
         devctxs = []
         lib.plat_cleanup()
+        lib.set_log_callback(ctypes.cast(None, _LOG_CALLBACK))
+        _log_callback = None
     lib = None
 
 

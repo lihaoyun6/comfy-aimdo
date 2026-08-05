@@ -38,6 +38,6 @@ void *aimdo_find_loaded_module(const char *const *libraries, size_t library_coun
         }
     }
 
-    log(ERROR, "%s: failed to find an already-loaded module\n", __func__);
+    log(AIMDO_LOG_ERROR, "%s: failed to find an already-loaded module\n", __func__);
     return NULL;
 }

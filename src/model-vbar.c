@@ -233,7 +233,7 @@ void *vbar_allocate(void *devctx, uint64_t size, int device) {
 
     /* FIXME: Do I care about alignment? Does Cuda just look after itself? */
     if (!CHECK_CU(cuMemAddressReserve(&mv->vbar, size, 0, 0, 0))) {
-        log(ERROR, "Could not reseve Virtual Address space for VBAR\n");
+        log(AIMDO_LOG_ERROR, "Could not reseve Virtual Address space for VBAR\n");
         free(mv);
         return NULL;
     }
@@ -390,7 +390,7 @@ int vbar_fault(void *devctx, void *vbar, uint64_t offset, uint64_t size, uint32_
         if (budget_deficit(VBAR_PAGE_SIZE) > 0 ||
             (err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle)) != CUDA_SUCCESS) {
             if (err != CUDA_ERROR_OUT_OF_MEMORY) {
-                log(ERROR, "VRAM Allocation failed (non OOM)\n");
+                log(AIMDO_LOG_ERROR, "VRAM Allocation failed (non OOM)\n");
                 return VBAR_FAULT_ERROR;
             }
             log(DEBUG, "VBAR allocator attempt exceeds available VRAM ...\n");
@@ -400,7 +400,7 @@ int vbar_fault(void *devctx, void *vbar, uint64_t offset, uint64_t size, uint32_
                 return VBAR_FAULT_OOM;
             }
             if ((err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle)) != CUDA_SUCCESS) {
-                log(ERROR, "VRAM Allocation failed\n");
+                log(AIMDO_LOG_ERROR, "VRAM Allocation failed\n");
                 return VBAR_FAULT_ERROR;
             }
         }

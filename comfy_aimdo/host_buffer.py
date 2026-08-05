@@ -28,7 +28,7 @@ if lib is not None:
         ctypes.c_uint64,  # file_offset
         ctypes.c_uint64,  # size
         ctypes.c_uint64,  # offset
-        ctypes.c_void_p,  # cuda stream (NULL = blocking host-only)
+        ctypes.c_void_p,  # cuda stream (NULL = default stream)
         ctypes.c_uint64,  # device dest ptr (0 = blocking host-only)
     ]
     lib.hostbuf_read_file_slice.restype = ctypes.c_bool
