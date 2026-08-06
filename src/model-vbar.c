@@ -2,18 +2,8 @@
 
 #define VBAR_PAGE_SIZE (32 << 20)
 
-#define VBAR_BACKUP_FREE_ATTEMPTS 4
-
 #define VBAR_GET_PAGE_NR(x) ((x) / VBAR_PAGE_SIZE)
 #define VBAR_GET_PAGE_NR_UP(x) VBAR_GET_PAGE_NR((x) + VBAR_PAGE_SIZE - 1)
-
-static const char *cuda_error_str(CUresult res) {
-    const char *desc = "<unknown CUDA error>";
-    if (cuGetErrorString(res, &desc) != CUDA_SUCCESS) {
-        desc = "<FATAL - CANNOT PARSE CUDA ERROR CODE>";
-    }
-    return desc;
-}
 
 typedef struct ResidentPage {
     CUmemGenericAllocationHandle handle;
@@ -397,44 +387,21 @@ int vbar_fault(void *devctx, void *vbar, uint64_t offset, uint64_t size, uint32_
 
         log(VERBOSE, "VBAR needs to allocate VRAM for page %d\n", (int)page_nr);
 
-        /* Try to allocate the page. On OOM, back off by freeing lower-priority
-         * pages and retry a few times before giving up. A single backup-free can
-         * fail transiently (the freed page may still be pinned, or the driver
-         * still reports pressure/fragmentation), and a hard error here aborts the
-         * whole prompt, so keep freeing until we can fault the page or exhaust the
-         * retries.
-         */
         if (budget_deficit(VBAR_PAGE_SIZE) > 0 ||
             (err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle)) != CUDA_SUCCESS) {
             if (err != CUDA_ERROR_OUT_OF_MEMORY) {
-                log(AIMDO_LOG_ERROR, "VRAM Allocation failed (non OOM): %s\n", cuda_error_str(err));
+                log(AIMDO_LOG_ERROR, "VRAM Allocation failed (non OOM)\n");
                 return VBAR_FAULT_ERROR;
             }
-
             log(DEBUG, "VBAR allocator attempt exceeds available VRAM ...\n");
-            for (int attempt = 0; attempt < VBAR_BACKUP_FREE_ATTEMPTS; attempt++) {
-                vbars_free(VBAR_PAGE_SIZE);
-                if (page_end > mv->watermark) {
-                    log(DEBUG, "VBAR allocation cancelled due to backup-free watermark reduction\n");
-                    return VBAR_FAULT_OOM;
-                }
-                err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle);
-                if (err == CUDA_SUCCESS) {
-                    break;
-                }
-                if (err != CUDA_ERROR_OUT_OF_MEMORY) {
-                    log(AIMDO_LOG_ERROR, "VRAM Allocation failed (non OOM): %s\n", cuda_error_str(err));
-                    return VBAR_FAULT_ERROR;
-                }
-            }
-            if (err != CUDA_SUCCESS) {
-                /* Still no room after repeated backup-frees. Report OOM (not a hard
-                 * error) so the caller can fall back to a plain transfer instead of
-                 * failing the prompt with "Fault failed: 2".
-                 */
-                log(WARNING, "VRAM Allocation failed after %d backup-frees: %s\n",
-                    VBAR_BACKUP_FREE_ATTEMPTS, cuda_error_str(err));
+            vbars_free(VBAR_PAGE_SIZE);
+            if (page_end > mv->watermark) {
+                log(DEBUG, "VBAR allocation cancelled due to backup-free watermark reduction\n");
                 return VBAR_FAULT_OOM;
+            }
+            if ((err = three_stooges(vaddr, VBAR_PAGE_SIZE, mv->device, &rp->handle)) != CUDA_SUCCESS) {
+                log(AIMDO_LOG_ERROR, "VRAM Allocation failed\n");
+                return VBAR_FAULT_ERROR;
             }
         }
         rp->serial++;
